@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+contracts/lib/
+.pglite/
