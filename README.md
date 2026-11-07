@@ -172,7 +172,7 @@ The columns are `reference, address, amount, asset, network, memo?`. Headers are
 
 ## API
 
-Base `http://localhost:4000/api` · JSON · camelCase · `Authorization: Bearer <token>`. Errors use `{ message, code, errors? }`:
+Base `http://localhost:4000/api` · `GET /health` (public, checks the DB) · JSON · camelCase · `Authorization: Bearer <token>`. Errors use `{ message, code, errors? }`:
 
 | Status | Meaning |
 |---|---|

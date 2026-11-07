@@ -25,7 +25,9 @@ import { APP_SETTINGS, type AppSettings } from "../../application/settings";
 import { ValidateWithdrawalSheet, type UploadedFile as Upload } from "../../application/validate-withdrawal-sheet";
 import { NotFoundError, ValidationError } from "../../domain/errors";
 import type { UserRecord } from "../../domain/ports/payout-repository";
-import { APP_CONFIG } from "../../core.module";
+import { sql } from "drizzle-orm";
+import { APP_CONFIG, DB_HANDLE } from "../../core.module";
+import type { DbHandle } from "../../infrastructure/db/client";
 import type { AppConfig } from "../../infrastructure/config/env";
 import { DEMO_USERS } from "../../infrastructure/db/demo-users";
 import { buildWithdrawalWorkbook } from "../../infrastructure/xlsx/template";
@@ -61,7 +63,16 @@ export class SystemController {
   constructor(
     @Inject(APP_SETTINGS) private readonly settings: AppSettings,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @Inject(DB_HANDLE) private readonly db: DbHandle,
   ) {}
+
+  @Public()
+  @Get("health")
+  @ApiOperation({ summary: "Liveness + database check (public)" })
+  async health() {
+    await this.db.db.execute(sql`select 1`); // throws → 500 if the database is unreachable
+    return { status: "ok", database: "up", environment: "testnet", dryRun: this.settings.dryRun };
+  }
 
   @Public()
   @Get("config")
@@ -144,6 +155,7 @@ export class BatchesController {
   @ApiConsumes("multipart/form-data")
   @ApiBody(uploadBody)
   @ApiOperation({ summary: "Import a withdrawal list as a draft batch (all-or-nothing)" })
+  @ApiResponse({ status: 201, description: "Draft batch created (Batch)" })
   @ApiResponse({ status: 422, description: "Validation errors: { message, code, errors: [{ row, messages, issues }] }" })
   async create(@CurrentUser() user: UserRecord, @UploadedFile() file: Express.Multer.File | undefined, @Body("channel") channel: unknown) {
     const ch = parseOr422(channelField, channel, "channel");
