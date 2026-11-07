@@ -47,6 +47,8 @@ export interface ItemRecord {
   failureReason?: string;
   txHash?: string;
   attempts: number;
+  /** True while a send to the provider is in flight (set before the call, cleared after). A crash leaves it true. */
+  sending: boolean;
   processedAt?: Date;
 }
 

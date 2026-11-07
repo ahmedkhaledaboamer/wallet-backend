@@ -17,13 +17,33 @@
   "type": "commonjs",
   "devDependencies": {
     "@openzeppelin/contracts": "^5.6.1",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
     "@types/node": "^24.19.2",
-    "typescript": "^7.0.2",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "drizzle-kit": "^0.31.11",
+    "supertest": "^7.3.2",
+    "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "@nestjs/common": "^12.4.0",
+    "@nestjs/core": "^12.4.0",
+    "@nestjs/platform-express": "^12.4.0",
+    "@nestjs/swagger": "^12.1.1",
     "@noble/hashes": "^2.4.0",
-    "exceljs": "^4.4.0"
+    "bullmq": "^6.7.2",
+    "drizzle-orm": "^0.45.4",
+    "exceljs": "^4.4.0",
+    "ioredis": "^6.0.0",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "ulid": "^3.0.2",
+    "viem": "^2.57.16",
+    "zod": "^4.6.7"
   },
   "private": true,
   "engines": {

@@ -4,6 +4,7 @@
  * can reject numeric / scientific-notation amounts and addresses.
  */
 import ExcelJS from "exceljs";
+import { UnreadableSheetError, type SheetReader } from "../../domain/ports/sheet-reader";
 import type { Cell, CellKind, ParsedSheet } from "../../domain/withdrawal-rules";
 
 const { ValueType } = ExcelJS;
@@ -41,12 +42,8 @@ function toCell(cell: ExcelJS.Cell): Cell {
   }
 }
 
-export class UnreadableWorkbookError extends Error {
-  constructor(cause?: unknown) {
-    super("Not a readable .xlsx workbook", { cause });
-    this.name = "UnreadableWorkbookError";
-  }
-}
+/** @deprecated alias kept for readability in tests */
+export const UnreadableWorkbookError = UnreadableSheetError;
 
 export async function readWithdrawalSheet(data: Uint8Array): Promise<ParsedSheet> {
   const wb = new ExcelJS.Workbook();
@@ -54,10 +51,10 @@ export async function readWithdrawalSheet(data: Uint8Array): Promise<ParsedSheet
     // exceljs types expect a Node Buffer; a Uint8Array view over the same bytes works at runtime.
     await wb.xlsx.load(Buffer.from(data.buffer, data.byteOffset, data.byteLength) as unknown as ExcelJS.Buffer);
   } catch (e) {
-    throw new UnreadableWorkbookError(e);
+    throw new UnreadableSheetError(e);
   }
   const ws = wb.worksheets[0];
-  if (!ws) throw new UnreadableWorkbookError();
+  if (!ws) throw new UnreadableSheetError();
 
   const headerByCol = new Map<number, string>();
   ws.getRow(1).eachCell({ includeEmpty: false }, (cell, col) => {
@@ -74,4 +71,10 @@ export async function readWithdrawalSheet(data: Uint8Array): Promise<ParsedSheet
   });
 
   return { headers: [...headerByCol.values()], rows };
+}
+
+export class ExcelSheetReader implements SheetReader {
+  read(bytes: Uint8Array): Promise<ParsedSheet> {
+    return readWithdrawalSheet(bytes);
+  }
 }

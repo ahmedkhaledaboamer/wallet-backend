@@ -19,7 +19,8 @@ export type VerificationResult =
   | { status: "mismatch"; reason: string };
 
 export interface TransactionVerifier {
-  readonly simulated: boolean;
+  /** True when this chain is verified by the dry-run simulator (no contract/RPC configured). */
+  isSimulated(chainId: number): boolean;
   verify(expected: ExpectedOnchainPayout): Promise<VerificationResult>;
 }
 export const TRANSACTION_VERIFIER = Symbol("TransactionVerifier");
