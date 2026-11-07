@@ -64,6 +64,8 @@ const schema = z.object({
 
   DRY_RUN_MIN_DELAY_MS: int(300),
   DRY_RUN_MAX_DELAY_MS: int(1500),
+  /** Simulated Trust Wallet confirmation delay (dry-run without a contract). */
+  DRY_RUN_CHAIN_CONFIRM_MS: int(6000),
 
   MEXC_BASE_URL: z.url().default("https://api.mexc.com"),
   MEXC_API_KEY: z.string().optional(),

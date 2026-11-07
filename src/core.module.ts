@@ -61,7 +61,7 @@ export function createVerifier(config: AppConfig): TransactionVerifier {
   const byChain = new Map<number, TransactionVerifier>();
   for (const n of Object.values(config.onchain)) {
     if (!n) continue;
-    byChain.set(n.chainId, n.simulated ? new SimulatedTransactionVerifier() : ViemTransactionVerifier.forRpc(n.rpcUrl!, n.confirmations));
+    byChain.set(n.chainId, n.simulated ? new SimulatedTransactionVerifier(config.env.DRY_RUN_CHAIN_CONFIRM_MS) : ViemTransactionVerifier.forRpc(n.rpcUrl!, n.confirmations));
   }
   return new ChainRoutingVerifier(byChain);
 }
