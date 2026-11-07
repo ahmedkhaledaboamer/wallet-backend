@@ -11,7 +11,15 @@
     "contracts:setup": "node scripts/forge.mjs install foundry-rs/forge-std@v1.11.0 --no-git",
     "contracts:build": "node scripts/forge.mjs build",
     "contracts:test": "node scripts/forge.mjs test -vv",
-    "contracts:deploy": "node scripts/deploy-contracts.mjs"
+    "contracts:deploy": "node scripts/deploy-contracts.mjs",
+    "start": "node --enable-source-maps dist/main.js",
+    "start:worker": "node --enable-source-maps dist/worker.js",
+    "dev": "npm run build && node --enable-source-maps dist/main.js",
+    "dev:worker": "npm run build && node --enable-source-maps dist/worker.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/infrastructure/db/cli.ts migrate",
+    "db:seed": "tsx src/infrastructure/db/cli.ts seed",
+    "db:setup": "tsx src/infrastructure/db/cli.ts setup"
   },
   "license": "UNLICENSED",
   "type": "commonjs",
@@ -24,6 +32,7 @@
     "@types/supertest": "^7.2.1",
     "drizzle-kit": "^0.31.11",
     "supertest": "^7.3.2",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },

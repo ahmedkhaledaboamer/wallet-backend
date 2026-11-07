@@ -26,6 +26,7 @@ import { ChainRoutingVerifier, SimulatedTransactionVerifier, ViemTransactionVeri
 import type { AppConfig } from "./infrastructure/config/env";
 import { connectDb, migrateDb, type DbHandle } from "./infrastructure/db/client";
 import { DrizzlePayoutRepository } from "./infrastructure/db/drizzle-payout.repository";
+import { seedDemoData } from "./infrastructure/db/seed";
 import { DryRunPayoutGateway } from "./infrastructure/dry-run-payout.gateway";
 import { MexcClient } from "./infrastructure/mexc/mexc.client";
 import { MexcPayoutGateway } from "./infrastructure/mexc/mexc-payout.gateway";
@@ -103,7 +104,11 @@ export class CoreModule implements OnApplicationShutdown {
         provide: DB_HANDLE,
         useFactory: async () => {
           const handle = await connectDb({ driver: config.env.DATABASE_DRIVER, url: config.env.DATABASE_URL, pgliteDir: config.env.PGLITE_DIR });
-          if (handle.driver === "pglite") await migrateDb(handle); // embedded DB: always migrate on boot
+          if (handle.driver === "pglite") {
+            // Embedded demo DB: migrate on boot and seed demo data when empty (a separate seed process can't reach memory://).
+            await migrateDb(handle);
+            if (config.env.SEED_ON_BOOT) await seedDemoData(handle.db);
+          }
           return handle;
         },
       },

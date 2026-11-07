@@ -44,6 +44,8 @@ const schema = z.object({
   DATABASE_URL: z.string().default("postgres://payout:payout@localhost:5432/payout"),
   PGLITE_DIR: z.string().default("memory://"),
   QUEUE_DRIVER: z.enum(["bullmq", "memory"]).default("bullmq"),
+  /** pglite only: seed demo data on boot when the DB is empty. */
+  SEED_ON_BOOT: bool(true),
   REDIS_URL: z.string().default("redis://localhost:6379"),
 
   DEMO_AUTH: bool(true),
