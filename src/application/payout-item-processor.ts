@@ -31,12 +31,15 @@ export class PayoutItemProcessor {
 
   async process(itemId: string, attempt: number, maxAttempts: number): Promise<ProcessResult> {
     // 1. Claim
+    // Lock order everywhere: batch row first, then item rows (prevents lock-order deadlocks).
+    const known = await this.repo.findItem(itemId);
+    if (!known) return { kind: "skipped", reason: "item not found" };
     const claim = await this.repo.transaction(async (tx) => {
+      const batch = await tx.lockBatch(known.batchId);
+      if (!batch || batch.status !== "processing") return { skip: `batch is ${batch?.status ?? "missing"}` } as const;
       const item = await tx.lockItem(itemId);
       if (!item) return { skip: "item not found" } as const;
       if (isFinalItemStatus(item.status)) return { skip: `already ${item.status}` } as const;
-      const batch = await tx.lockBatch(item.batchId);
-      if (!batch || batch.status !== "processing") return { skip: `batch is ${batch?.status ?? "missing"}` } as const;
 
       if (item.status === "processing" && item.sending) {
         const reason = "Worker stopped while the withdrawal was being sent; outcome unknown.";
@@ -71,6 +74,7 @@ export class PayoutItemProcessor {
     // 3. Record
     const lastAttempt = attempt >= maxAttempts;
     return this.repo.transaction(async (tx) => {
+      await tx.lockBatch(item.batchId); // batch first (same order as every other writer)
       const now = this.clock.now();
       switch (outcome.status) {
         case "accepted":

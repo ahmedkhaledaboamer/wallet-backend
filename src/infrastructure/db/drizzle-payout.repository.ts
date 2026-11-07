@@ -122,8 +122,10 @@ class DrizzleTx implements PayoutRepositoryTx {
   }
 
   async lockBatch(id: string): Promise<BatchRecord | null> {
-    // FOR UPDATE can't apply to the nullable side of an outer join: lock the row first, then read it.
-    const locked = await this.db.select({ id: batches.id }).from(batches).where(eq(batches.id, id)).for("update");
+    // FOR NO KEY UPDATE, not FOR UPDATE: audit_log/batch_items inserts take FOR KEY SHARE on the batch
+    // (foreign-key check). FOR UPDATE conflicts with that and deadlocks two workers settling the same batch;
+    // NO KEY UPDATE doesn't (we never change the primary key). Locked first, then read (no outer-join locking).
+    const locked = await this.db.select({ id: batches.id }).from(batches).where(eq(batches.id, id)).for("no key update");
     if (!locked.length) return null;
     return this.getBatch(id);
   }
@@ -134,7 +136,7 @@ class DrizzleTx implements PayoutRepositoryTx {
   }
 
   async lockItem(id: string): Promise<ItemRecord | null> {
-    const [row] = await this.db.select().from(batchItems).where(eq(batchItems.id, id)).for("update");
+    const [row] = await this.db.select().from(batchItems).where(eq(batchItems.id, id)).for("no key update");
     return row ? toItem(row) : null;
   }
 

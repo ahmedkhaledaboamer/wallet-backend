@@ -1,0 +1,33 @@
+# Local infrastructure for the payout API: PostgreSQL 17 + Redis 7 (BullMQ).
+#   docker compose up -d      start
+#   docker compose down       stop (add -v to wipe data)
+name: batch-payout
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: payout
+      POSTGRES_PASSWORD: payout
+      POSTGRES_DB: payout
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payout -d payout"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    mem_limit: 128m
+volumes:
+  pgdata:
+  redisdata:
