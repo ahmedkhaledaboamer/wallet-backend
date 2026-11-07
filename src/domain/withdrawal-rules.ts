@@ -189,8 +189,13 @@ export function validateWithdrawalSheet(sheet: ParsedSheet, channel: Channel, li
     } else if (/^-\s*\d/.test(amountRaw)) {
       fail("amount.not_positive", { value: amountRaw });
     } else {
-      const parsed = /^\d+(\.\d+)?$/.test(amountRaw) ? Amount.tryParse(amountRaw) : null;
-      if (!parsed) fail("amount.not_number", { value: amountRaw });
+      const wellFormed = /^\d+(\.\d+)?$/.test(amountRaw);
+      // Check precision on the text first: a well-formed decimal with >18 places can't even become an
+      // Amount, but it IS a number, just too precise (it must not be reported as "not a number").
+      const significantDecimals = (amountRaw.split(".")[1] ?? "").replace(/0+$/, "").length;
+      const parsed = wellFormed && significantDecimals <= limits.maxDecimals ? Amount.tryParse(amountRaw) : null;
+      if (wellFormed && significantDecimals > limits.maxDecimals) fail("amount.too_precise", { value: amountRaw, max: limits.maxDecimals });
+      else if (!parsed) fail("amount.not_number", { value: amountRaw });
       else if (parsed.isZero()) fail("amount.zero", { value: amountRaw });
       else if (parsed.fractionDigits() > limits.maxDecimals) fail("amount.too_precise", { value: amountRaw, max: limits.maxDecimals });
       else if (minimum && parsed.lt(minimum)) fail("amount.below_minimum", { value: amountRaw, minimum: minimum.toString(), channel });

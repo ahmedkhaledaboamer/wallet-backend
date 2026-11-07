@@ -76,6 +76,13 @@ describe("withdrawal sheet validation", () => {
     for (const e of r.errors) expect(e.messages).toHaveLength(e.issues.length);
   });
 
+  it("reports a very long but well-formed decimal as too_precise, not not_number", async () => {
+    // 19 decimals: more than Amount's 18-digit scale, still a valid decimal.
+    const r = await validate([tron(1, { amount: "10.1234567890123456789" }), tron(2, { amount: "5.1234560000000000000000" })]);
+    expect(r.errors.find((e) => e.row === 2)?.issues).toEqual([{ code: "amount.too_precise", params: { value: "10.1234567890123456789", max: 6 } }]);
+    expect(codes(r, 3)).toEqual([]); // trailing zeros don't count as precision
+  });
+
   it("treats references as duplicates case-insensitively", async () => {
     const r = await validate([tron(1, { reference: "wd-a" }), tron(2, { reference: "WD-A" })]);
     expect(codes(r, 3)).toEqual(["reference.duplicate"]);
