@@ -252,3 +252,43 @@ npm run contracts:deploy -- local        # smoke test against anvil inside the c
 | `npm run contracts:test` | Foundry |
 
 Vitest 5 replaced `poolOptions.maxThreads/maxForks` with `maxWorkers`. It is set to 2 for this low-RAM machine.
+
+---
+
+## Deploy: Railway (backend) + Vercel (frontend)
+
+The backend can't run on Vercel. The BullMQ worker must stay running all the time, and Postgres and Redis aren't available inside Vercel. Use **Railway** for the backend and **Vercel** for the frontend only.
+
+### Railway: one project with 4 services
+
+1. **New Project → Deploy from GitHub repo** → `wallet-backend`. This becomes the **api** service.
+   - Settings → *Config-as-code path*: `deploy/railway/api.json`. That file sets build `npm run build`, pre-deploy migrate + seed, start `npm start`, and healthcheck `/api/health`.
+   - Settings → Networking → **Generate Domain**, which gives e.g. `wallet-backend-production.up.railway.app`.
+2. **+ New → Database → PostgreSQL**, and **+ New → Database → Redis**.
+3. **+ New → GitHub repo** → the same `wallet-backend` repo again. This becomes the **worker** service.
+   - *Config-as-code path*: `deploy/railway/worker.json` (start `npm run start:worker`). No domain is needed.
+4. Variables, on **both** api and worker. Use Railway's *shared variables* or set them on each service:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `REDIS_URL` | `${{Redis.REDIS_URL}}` |
+| `DATABASE_DRIVER` / `QUEUE_DRIVER` | `pg` / `bullmq` |
+| `CORS_ORIGIN` | your Vercel URL, e.g. `https://wallet-frontend.vercel.app` |
+| `PAYOUTS_DRY_RUN` / `ALLOW_LIVE_MEXC` | `true` / `false` |
+| `DEMO_AUTH` | `true` (public demo: anyone can pick a role, testnet only) |
+| `TREASURY_ADDRESS` | your treasury address |
+| `ERC20_RPC_URL` | `https://ethereum-sepolia-rpc.publicnode.com` |
+| `ERC20_PAYOUT_CONTRACT` / `ERC20_TOKEN_ADDRESS` | the Sepolia deployment (see `contracts/broadcast/Deploy.s.sol/11155111/`) |
+| `ERC20_TOKEN_DECIMALS` / `ERC20_CONFIRMATIONS` | `6` / `2` |
+
+`PORT` is provided by Railway. **Never** set `DEPLOYER_PRIVATE_KEY` on a server: it's only needed on your machine to deploy contracts.
+
+### Vercel (frontend)
+
+Import the frontend repo with framework preset **Next.js**. Set:
+
+- `NEXT_PUBLIC_API_MODE=live`
+- `NEXT_PUBLIC_API_URL=https://<railway api domain>/api`
+
+Then redeploy the frontend, and set `CORS_ORIGIN` on Railway to the final Vercel URL.
