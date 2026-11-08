@@ -259,3 +259,54 @@ describe("Trust Wallet flow", () => {
     expect(audit.find((a: { action: string }) => a.action === "batch.transaction_verified").context).toMatchObject({ result: "confirmed", simulated: true });
   });
 });
+
+describe("Excel export of a batch's withdrawals", () => {
+  const readSheet = async (body: Buffer) => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(body as never);
+    const ws = wb.getWorksheet("Withdrawals")!;
+    const headers = (ws.getRow(1).values as unknown[]).slice(1);
+    const rows: Record<string, string>[] = [];
+    ws.eachRow((row, n) => {
+      if (n === 1) return;
+      const vals = (row.values as unknown[]).slice(1);
+      rows.push(Object.fromEntries(headers.map((h, i) => [String(h), vals[i] === undefined || vals[i] === null ? "" : String(vals[i])])));
+    });
+    return { rows, summary: wb.getWorksheet("Batch")! };
+  };
+  const binary = (r: import("supertest").Test) =>
+    r.buffer(true).parse((res, cb) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => cb(null, Buffer.concat(chunks)));
+    });
+
+  it("exports every item with exact amounts, statuses and a summary sheet", async () => {
+    const b = (await t.as(MAKER).get("/batches?status=completed_with_issues").expect(200)).body.data[0];
+    const r = await binary(t.as(CHECKER).get(`/batches/${b.id}/items.xlsx`)).expect(200);
+    expect(r.headers["content-type"]).toContain("spreadsheetml");
+    expect(r.headers["content-disposition"]).toMatch(/batch-.*-withdrawals\.xlsx/);
+    const { rows, summary } = await readSheet(r.body);
+    expect(rows).toHaveLength(b.itemCount);
+    const api = (await t.as(MAKER).get(`/batches/${b.id}/items?pageSize=200`).expect(200)).body.data;
+    expect(rows.map((x) => [x.reference, x.amount, x.status])).toEqual(api.map((i: { reference: string; amount: string; status: string }) => [i.reference, i.amount, i.status]));
+    expect(summary.getCell("B1").value).toBe(b.id);
+    expect(summary.getCell("B6").value).toBe(b.totalAmount);
+  });
+
+  it("applies the same status/search filters as the table", async () => {
+    const b = (await t.as(MAKER).get("/batches?status=completed_with_issues").expect(200)).body.data[0];
+    const r = await binary(t.as(MAKER).get(`/batches/${b.id}/items.xlsx?status=succeeded`)).expect(200);
+    const { rows } = await readSheet(r.body);
+    expect(rows.length).toBe(b.paidCount);
+    expect(rows.every((x) => x.status === "succeeded")).toBe(true);
+    expect(r.headers["content-disposition"]).toContain("-succeeded.xlsx");
+  });
+
+  it("requires auth and a real batch", async () => {
+    await t.http().get("/api/batches/00000000-0000-4000-8000-000000000000/items.xlsx").expect(401);
+    await t.as(MAKER).get("/batches/00000000-0000-4000-8000-000000000000/items.xlsx").expect(404);
+    await t.as(MAKER).get("/batches/00000000-0000-4000-8000-000000000000/items.xlsx?status=bogus").expect(422);
+  });
+});

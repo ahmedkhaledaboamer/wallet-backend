@@ -30,9 +30,10 @@ import { APP_CONFIG, DB_HANDLE } from "../../core.module";
 import type { DbHandle } from "../../infrastructure/db/client";
 import type { AppConfig } from "../../infrastructure/config/env";
 import { DEMO_USERS } from "../../infrastructure/db/demo-users";
+import { buildItemsExport } from "../../infrastructure/xlsx/items-export";
 import { buildWithdrawalWorkbook } from "../../infrastructure/xlsx/template";
 import { CurrentUser, Public, Roles } from "./auth";
-import { presentAudit, presentBatch, presentConfig, presentDashboard, presentItem, presentValidation, page } from "./presenters";
+import { presentAudit, presentBatch, presentConfig, presentDashboard, presentItem, presentValidation, page, txExplorerUrl } from "./presenters";
 import { auditListQuery, batchListQuery, channelField, itemListQuery, parseOr422, uuidParam } from "./query";
 
 /** Hard transport cap; the configured MAX_FILE_BYTES (2 MB) is enforced by the use case with a row-0 error. */
@@ -174,6 +175,22 @@ export class BatchesController {
   @ApiParam({ name: "id", format: "uuid" })
   async get(@Param("id") id: string) {
     return presentBatch(await this.queries.getBatch(batchId(id)), this.settings);
+  }
+
+  @Get(":id/items.xlsx")
+  @ApiOperation({ summary: "Withdrawals of a batch as Excel (same status/search filters as /items; amounts as exact text)" })
+  async itemsExport(@Param("id") id: string, @Query() query: Record<string, unknown>, @Res() res: Response) {
+    const q = parseOr422(itemListQuery, { ...query, page: 1, pageSize: 1 }, "query");
+    const { batch } = await this.queries.listItems(batchId(id), q);
+    // All matching rows (max 1000 per batch), not just one page.
+    const all = await this.queries.listItems(batch.id, { status: q.status, search: q.search, page: 1, pageSize: Math.max(1, batch.itemCount) });
+    const bytes = await buildItemsExport(batch, all.page.data, { txUrl: (h) => txExplorerUrl(this.settings, batch.network, h) });
+    const suffix = q.status ? `-${q.status}` : "";
+    res
+      .status(200)
+      .setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .setHeader("Content-Disposition", `attachment; filename="batch-${batch.id.slice(0, 8)}-withdrawals${suffix}.xlsx"`)
+      .send(Buffer.from(bytes));
   }
 
   @Get(":id/items")
